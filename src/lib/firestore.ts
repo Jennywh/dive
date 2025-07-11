@@ -118,6 +118,20 @@ export const getUser = async (uid: string): Promise<User | null> => {
   }
 };
 
+export const updateUser = async (uid: string, updates: Partial<Omit<User, 'uid' | 'createdAt'>>): Promise<void> => {
+  try {
+    const userRef = doc(db, COLLECTIONS.USERS, uid);
+    
+    // Remove undefined values
+    const cleanedUpdates = removeUndefinedValues(updates);
+    
+    await updateDoc(userRef, cleanedUpdates as DocumentData);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw error;
+  }
+};
+
 // Helper function to convert Firestore photo to DivePhoto
 const convertFirestorePhoto = (photo: FirestorePhoto): DivePhoto => ({
   ...photo,

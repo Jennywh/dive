@@ -81,6 +81,56 @@ export const deletePhoto = async (photoId: string): Promise<void> => {
   }
 };
 
+// Upload user avatar
+export const uploadAvatar = async (
+  file: File,
+  userId: string
+): Promise<string> => {
+  try {
+    // Delete existing avatar if it exists
+    try {
+      await deleteAvatar(userId);
+    } catch {
+      // Ignore error if no existing avatar
+    }
+    
+    const fileName = `${userId}/avatar.${file.name.split('.').pop()}`;
+    const storageRef = ref(storage, `profile-photos/${fileName}`);
+    
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, file);
+    
+    // Get download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    return downloadURL;
+  } catch (error) {
+    console.error('Error uploading avatar:', error);
+    throw new Error('Failed to upload avatar');
+  }
+};
+
+// Delete user avatar
+export const deleteAvatar = async (userId: string): Promise<void> => {
+  try {
+    // Try different common extensions
+    const extensions = ['jpg', 'jpeg', 'png', 'webp'];
+    
+    for (const ext of extensions) {
+      try {
+        const storageRef = ref(storage, `profile-photos/${userId}/avatar.${ext}`);
+        await deleteObject(storageRef);
+        break; // Stop if we successfully deleted one
+      } catch {
+        // Continue trying other extensions
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting avatar:', error);
+    throw new Error('Failed to delete avatar');
+  }
+};
+
 // Generate thumbnail URL (this would typically be done server-side with Cloud Functions)
 export const generateThumbnailUrl = (url: string): string => {
   // For now, we'll use the original URL

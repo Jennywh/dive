@@ -12,7 +12,8 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { createUser, getUser } from '@/lib/firestore';
+import { createUser, getUser, updateUser } from '@/lib/firestore';
+import { uploadAvatar } from '@/lib/storage';
 import { User } from '@/types';
 
 interface AuthContextType {
@@ -22,6 +23,8 @@ interface AuthContextType {
   signup: (email: string, password: string, displayName: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  updateAvatar: (file: File) => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -94,6 +97,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await signOut(auth);
   };
 
+  const updateAvatar = async (file: File) => {
+    if (!currentUser) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      // Upload avatar to storage
+      const photoURL = await uploadAvatar(file, currentUser.uid);
+      
+      // Update Firebase Auth profile
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { photoURL });
+      }
+      
+      // Update Firestore user document
+      await updateUser(currentUser.uid, { photoURL });
+      
+      // Update local state
+      setCurrentUser(prev => prev ? { ...prev, photoURL } : null);
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      throw error;
+    }
+  };
+
+  const updateDisplayName = async (displayName: string) => {
+    if (!currentUser) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      // Update Firebase Auth profile
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName });
+      }
+      
+      // Update Firestore user document
+      await updateUser(currentUser.uid, { displayName });
+      
+      // Update local state
+      setCurrentUser(prev => prev ? { ...prev, displayName } : null);
+    } catch (error) {
+      console.error('Error updating display name:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
@@ -158,6 +208,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signup,
     loginWithGoogle,
     logout,
+    updateAvatar,
+    updateDisplayName,
   };
 
   return (

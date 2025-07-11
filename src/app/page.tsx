@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { UserProfileModal } from '@/components/auth/UserProfileModal';
 import { DiveMap } from '@/components/map/DiveMap';
 import { DiveLogForm } from '@/components/forms/DiveLogForm';
 import { getRecentDiveLogs, getDiveLogs, deleteDiveLog } from '@/lib/firestore';
@@ -18,7 +19,9 @@ import {
   Menu,
   X,
   Trash2,
-  Filter 
+  Filter,
+  Settings,
+  ChevronDown
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -30,6 +33,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showOnlyMyDives, setShowOnlyMyDives] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   // Load dive logs
   useEffect(() => {
@@ -68,6 +73,18 @@ export default function HomePage() {
       setShowOnlyMyDives(false);
     }
   }, [currentUser, showOnlyMyDives]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showUserDropdown && !(event.target as Element).closest('.relative')) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserDropdown]);
 
   const handleDiveLogCreated = (newDiveLog: DiveLog) => {
     setDiveLogs(prev => [newDiveLog, ...prev]);
@@ -150,28 +167,54 @@ export default function HomePage() {
                     <span className="hidden sm:inline">Log Dive</span>
                   </button>
                   
-                  <div className="flex items-center space-x-3">
-                    {currentUser.photoURL ? (
-                      <img
-                        src={currentUser.photoURL}
-                        alt={currentUser.displayName}
-                        className="h-8 w-8 rounded-full"
-                      />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                        <User className="h-4 w-4 text-white" />
+                  {/* User Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserDropdown(!showUserDropdown)}
+                      className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      {currentUser.photoURL ? (
+                        <img
+                          src={currentUser.photoURL}
+                          alt={currentUser.displayName}
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                          <User className="h-4 w-4 text-white" />
+                        </div>
+                      )}
+                      <span className="text-sm font-medium text-gray-900 hidden sm:block">
+                        {currentUser.displayName}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showUserDropdown && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
+                        <button
+                          onClick={() => {
+                            setShowProfileModal(true);
+                            setShowUserDropdown(false);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          Profile Settings
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleLogout();
+                            setShowUserDropdown(false);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <LogOut className="h-4 w-4 mr-2" />
+                          Sign Out
+                        </button>
                       </div>
                     )}
-                    <span className="text-sm font-medium text-gray-900 hidden sm:block">
-                      {currentUser.displayName}
-                    </span>
-                    <button
-                      onClick={handleLogout}
-                      className="text-gray-400 hover:text-gray-500 p-2"
-                      title="Sign out"
-                    >
-                      <LogOut className="h-5 w-5" />
-                    </button>
                   </div>
                 </>
               ) : (
@@ -456,6 +499,13 @@ export default function HomePage() {
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
+        />
+      )}
+
+      {showProfileModal && (
+        <UserProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
         />
       )}
 
