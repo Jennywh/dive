@@ -163,14 +163,14 @@ export const getDiveLogs = async (userId?: string): Promise<DiveLog[]> => {
   try {
     let q = query(
       collection(db, COLLECTIONS.DIVE_LOGS),
-      orderBy('date', 'desc')
+      orderBy('createdAt', 'desc')
     );
 
     if (userId) {
       q = query(
         collection(db, COLLECTIONS.DIVE_LOGS),
         where('userId', '==', userId),
-        orderBy('date', 'desc')
+        orderBy('createdAt', 'desc')
       );
     }
 
@@ -229,6 +229,21 @@ export const updateDiveLog = async (id: string, updates: Partial<DiveLog>) => {
 
 export const deleteDiveLog = async (id: string) => {
   try {
+    // First, get the dive log to retrieve its photos
+    const diveLog = await getDiveLog(id);
+    
+    if (diveLog) {
+      // Delete all photos from Storage first
+      if (diveLog.photos && diveLog.photos.length > 0) {
+        const { deletePhoto } = await import('./storage');
+        
+        // Delete all photos from Storage
+        const deletePromises = diveLog.photos.map(photo => deletePhoto(photo.id));
+        await Promise.all(deletePromises);
+      }
+    }
+    
+    // Then delete the dive log document from Firestore
     await deleteDoc(doc(db, COLLECTIONS.DIVE_LOGS, id));
   } catch (error) {
     console.error('Error deleting dive log:', error);
@@ -239,8 +254,11 @@ export const deleteDiveLog = async (id: string) => {
 // Get recent dive logs for map display
 export const getRecentDiveLogs = async (limitCount: number = 50): Promise<DiveLog[]> => {
   try {
-    const collectionRef = collection(db, COLLECTIONS.DIVE_LOGS);
-    const querySnapshot = await getDocs(collectionRef);
+    const q = query(
+      collection(db, COLLECTIONS.DIVE_LOGS),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
     
     if (querySnapshot.empty) {
       return [];
@@ -250,9 +268,6 @@ export const getRecentDiveLogs = async (limitCount: number = 50): Promise<DiveLo
       const data = doc.data() as FirestoreDiveLog;
       return convertFirestoreDiveLog(doc.id, data);
     });
-
-    // Sort by date on the client side for now
-    diveLogs.sort((a, b) => b.date.getTime() - a.date.getTime());
     
     // Return limited results
     return diveLogs.slice(0, limitCount);

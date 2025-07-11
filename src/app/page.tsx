@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { DiveMap } from '@/components/map/DiveMap';
 import { DiveLogForm } from '@/components/forms/DiveLogForm';
-import { getRecentDiveLogs } from '@/lib/firestore';
+import { getRecentDiveLogs, getDiveLogs, deleteDiveLog } from '@/lib/firestore';
 import { DiveLog } from '@/types';
 import { 
   Plus, 
@@ -16,7 +16,9 @@ import {
   Calendar,
   MapPin,
   Menu,
-  X 
+  X,
+  Trash2,
+  Filter 
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -27,13 +29,21 @@ export default function HomePage() {
   const [selectedDiveId, setSelectedDiveId] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnlyMyDives, setShowOnlyMyDives] = useState(false);
 
   // Load dive logs
   useEffect(() => {
     const loadDiveLogs = async () => {
       try {
         setLoading(true);
-        const logs = await getRecentDiveLogs(100);
+        let logs: DiveLog[];
+        
+        if (showOnlyMyDives && currentUser) {
+          logs = await getDiveLogs(currentUser.uid);
+        } else {
+          logs = await getRecentDiveLogs(100);
+        }
+        
         setDiveLogs(logs);
       } catch (error) {
         console.error('Error loading dive logs:', error);
@@ -43,7 +53,7 @@ export default function HomePage() {
     };
 
     loadDiveLogs();
-  }, []);
+  }, [showOnlyMyDives, currentUser]);
 
   // Close auth modal when user successfully logs in
   useEffect(() => {
@@ -52,20 +62,12 @@ export default function HomePage() {
     }
   }, [currentUser, showAuthModal]);
 
-  // Reload dive logs when user logs in
+  // Reset filter when user logs out
   useEffect(() => {
-    if (currentUser) {
-      const loadDiveLogs = async () => {
-        try {
-          const logs = await getRecentDiveLogs(100);
-          setDiveLogs(logs);
-        } catch (error) {
-          console.error('Error reloading dive logs after auth:', error);
-        }
-      };
-      loadDiveLogs();
+    if (!currentUser && showOnlyMyDives) {
+      setShowOnlyMyDives(false);
     }
-  }, [currentUser]);
+  }, [currentUser, showOnlyMyDives]);
 
   const handleDiveLogCreated = (newDiveLog: DiveLog) => {
     setDiveLogs(prev => [newDiveLog, ...prev]);
@@ -83,6 +85,32 @@ export default function HomePage() {
       await logout();
     } catch (error) {
       console.error('Error logging out:', error);
+    }
+  };
+
+  const handleDeleteDive = async (diveId: string) => {
+    const selectedDive = diveLogs.find(dive => dive.id === diveId);
+    const photoCount = selectedDive?.photos?.length || 0;
+    
+    const confirmMessage = photoCount > 0 
+      ? `Are you sure you want to delete this dive and its ${photoCount} photo${photoCount !== 1 ? 's' : ''}? This action cannot be undone.`
+      : 'Are you sure you want to delete this dive? This action cannot be undone.';
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    
+    try {
+      await deleteDiveLog(diveId);
+      // Remove the dive from the local state
+      setDiveLogs(prev => prev.filter(dive => dive.id !== diveId));
+      // Clear selection if the deleted dive was selected
+      if (selectedDiveId === diveId) {
+        setSelectedDiveId(undefined);
+      }
+    } catch (error) {
+      console.error('Error deleting dive:', error);
+      alert('Failed to delete dive and photos. Please try again.');
     }
   };
 
@@ -168,7 +196,7 @@ export default function HomePage() {
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
             <div className="p-4 border-b">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-semibold text-gray-900">
                   Recent Dives
                 </h2>
@@ -176,6 +204,23 @@ export default function HomePage() {
                   {diveLogs.length} total
                 </div>
               </div>
+              
+              {/* Filter Toggle */}
+              {currentUser && (
+                <div className="flex items-center space-x-2">
+                  <Filter className="h-4 w-4 text-gray-400" />
+                  <button
+                    onClick={() => setShowOnlyMyDives(!showOnlyMyDives)}
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      showOnlyMyDives
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {showOnlyMyDives ? 'My Dives' : 'All Dives'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Dive List */}
@@ -286,12 +331,24 @@ export default function HomePage() {
                 <h3 className="text-lg font-semibold text-gray-900">
                   {selectedDive.title}
                 </h3>
-                <button
-                  onClick={() => setSelectedDiveId(undefined)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  {/* Delete button - only show if user owns this dive */}
+                  {currentUser && selectedDive.userId === currentUser.uid && (
+                    <button
+                      onClick={() => handleDeleteDive(selectedDive.id)}
+                      className="text-red-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50"
+                      title="Delete dive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedDiveId(undefined)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Photos */}
