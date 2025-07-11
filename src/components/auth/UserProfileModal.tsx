@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { X, Camera, User, Edit2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { validateImageFile } from '@/lib/storage';
@@ -118,9 +119,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="relative group">
               <div className="relative">
                 {currentUser?.photoURL ? (
-                  <img
+                  <Image
                     src={currentUser.photoURL}
                     alt={currentUser.displayName}
+                    width={96}
+                    height={96}
                     className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
                   />
                 ) : (

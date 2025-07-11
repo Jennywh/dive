@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { UserProfileModal } from '@/components/auth/UserProfileModal';
@@ -181,9 +182,11 @@ export default function HomePage() {
                       className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     >
                       {currentUser.photoURL ? (
-                        <img
+                        <Image
                           src={currentUser.photoURL}
                           alt={currentUser.displayName}
+                          width={32}
+                          height={32}
                           className="h-8 w-8 rounded-full object-cover"
                         />
                       ) : (
@@ -316,9 +319,11 @@ export default function HomePage() {
                     >
                       {/* Dive Photo */}
                       {dive.photos.length > 0 && (
-                        <img
+                        <Image
                           src={dive.photos[0].url}
                           alt={dive.title}
+                          width={320}
+                          height={128}
                           className="w-full h-32 object-cover rounded-md mb-2"
                         />
                       )}
@@ -406,10 +411,12 @@ export default function HomePage() {
               {selectedDive.photos.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {selectedDive.photos.slice(0, 4).map((photo, index) => (
-                    <img
+                    <Image
                       key={photo.id}
                       src={photo.url}
                       alt={photo.caption || `Photo ${index + 1}`}
+                      width={160}
+                      height={96}
                       className="w-full h-24 object-cover rounded-md"
                     />
                   ))}
