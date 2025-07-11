@@ -43,10 +43,14 @@ export default function HomePage() {
         setLoading(true);
         let logs: DiveLog[];
         
+        console.log('Loading dives with filter:', { showOnlyMyDives, currentUser: currentUser?.uid });
+        
         if (showOnlyMyDives && currentUser) {
           logs = await getDiveLogs(currentUser.uid);
+          console.log('Loaded my dives:', logs.length);
         } else {
           logs = await getRecentDiveLogs(100);
+          console.log('Loaded all dives:', logs.length);
         }
         
         setDiveLogs(logs);
@@ -87,7 +91,10 @@ export default function HomePage() {
   }, [showUserDropdown]);
 
   const handleDiveLogCreated = (newDiveLog: DiveLog) => {
-    setDiveLogs(prev => [newDiveLog, ...prev]);
+    // Only add to local state if it matches the current filter
+    if (!showOnlyMyDives || (currentUser && newDiveLog.userId === currentUser.uid)) {
+      setDiveLogs(prev => [newDiveLog, ...prev]);
+    }
     setShowDiveForm(false);
     setSelectedDiveId(newDiveLog.id);
   };
@@ -241,10 +248,10 @@ export default function HomePage() {
             <div className="p-4 border-b">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Recent Dives
+                  {showOnlyMyDives ? 'My Dives' : 'Recent Dives'}
                 </h2>
                 <div className="text-sm text-gray-500">
-                  {diveLogs.length} total
+                  {diveLogs.length} {showOnlyMyDives ? 'my' : 'total'}
                 </div>
               </div>
               
@@ -254,13 +261,14 @@ export default function HomePage() {
                   <Filter className="h-4 w-4 text-gray-400" />
                   <button
                     onClick={() => setShowOnlyMyDives(!showOnlyMyDives)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    disabled={loading}
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors disabled:opacity-50 ${
                       showOnlyMyDives
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    {showOnlyMyDives ? 'My Dives' : 'All Dives'}
+                    {loading ? 'Loading...' : (showOnlyMyDives ? 'My Dives' : 'All Dives')}
                   </button>
                 </div>
               )}

@@ -175,24 +175,34 @@ export const createDiveLog = async (diveLogData: Omit<DiveLog, 'id' | 'createdAt
 
 export const getDiveLogs = async (userId?: string): Promise<DiveLog[]> => {
   try {
-    let q = query(
-      collection(db, COLLECTIONS.DIVE_LOGS),
-      orderBy('createdAt', 'desc')
-    );
-
+    let q;
+    
     if (userId) {
+      // When filtering by userId, we can't use orderBy without a composite index
+      // So we'll sort on the client side instead
       q = query(
         collection(db, COLLECTIONS.DIVE_LOGS),
-        where('userId', '==', userId),
+        where('userId', '==', userId)
+      );
+    } else {
+      q = query(
+        collection(db, COLLECTIONS.DIVE_LOGS),
         orderBy('createdAt', 'desc')
       );
     }
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
+    const diveLogs = querySnapshot.docs.map(doc => {
       const data = doc.data() as FirestoreDiveLog;
       return convertFirestoreDiveLog(doc.id, data);
     });
+    
+    // Sort on client side when filtering by userId
+    if (userId) {
+      diveLogs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+    
+    return diveLogs;
   } catch (error) {
     console.error('Error getting dive logs:', error);
     throw error;
